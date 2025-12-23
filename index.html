@@ -1,0 +1,1042 @@
+<!doctype html>
+<html lang="ko">
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>매입/매출 누적 분석 (1-page)</title>
+
+  <!-- XLSX (SheetJS) Local -->
+  <script src="./vendor/xlsx.full.min.js"></script>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"
+    onerror="this.onerror=null;this.src='https://unpkg.com/chart.js@4.4.1/dist/chart.umd.min.js';"></script>
+
+  <style>
+    :root {
+      --bg: #0b0c10;
+      --panel: #12131a;
+      --panel2: #0f1016;
+      --line: #26283a;
+      --text: #e9e9f1;
+      --sub: #a7a9be;
+      --accent: #E51C1C;
+      --good: #2ecc71;
+      --bad: #ff5a6b;
+      --radius: 18px;
+      font-family: Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    }
+
+    body {
+      margin: 0;
+      background: linear-gradient(180deg, #0b0c10 0%, #0a0a12 100%);
+      color: var(--text);
+    }
+
+    .wrap {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-end;
+      gap: 14px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 20px;
+      letter-spacing: -.2px;
+    }
+
+    .hint {
+      color: var(--sub);
+      font-size: 13px;
+      margin-top: 6px;
+    }
+
+    .row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .btn {
+      border: 1px solid rgba(255, 255, 255, .10);
+      background: rgba(255, 255, 255, .06);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .btn.primary {
+      background: rgba(229, 28, 28, .14);
+      border-color: rgba(229, 28, 28, .35);
+    }
+
+    .btn:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+    }
+
+    .input {
+      background: rgba(255, 255, 255, .05);
+      border: 1px solid rgba(255, 255, 255, .10);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 12px;
+      font-size: 13px;
+      outline: none;
+    }
+
+    select.input {
+      padding-right: 28px;
+    }
+
+    .pill {
+      display: inline-flex;
+      gap: 6px;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, .10);
+      background: rgba(255, 255, 255, .05);
+      font-size: 12px;
+      color: var(--sub);
+    }
+
+    .pill b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+
+    .card {
+      background: rgba(18, 19, 26, .92);
+      border: 1px solid rgba(255, 255, 255, .06);
+      border-radius: var(--radius);
+      padding: 14px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, .26);
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      color: #fff;
+      letter-spacing: -.2px;
+    }
+
+    .mini {
+      color: var(--sub);
+      font-size: 12px;
+      margin-top: 8px;
+      line-height: 1.5;
+    }
+
+    .wide {
+      grid-column: 1 / -1;
+    }
+
+    .banner {
+      display: none;
+      background: rgba(255, 90, 107, .10);
+      border: 1px solid rgba(255, 90, 107, .30);
+      color: #ffd7db;
+      padding: 10px 12px;
+      border-radius: 14px;
+      margin-bottom: 14px;
+      line-height: 1.4;
+      font-size: 13px;
+      white-space: pre-wrap;
+    }
+
+    .split {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .kpi {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .kpi .box {
+      padding: 10px 12px;
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(255, 255, 255, .04);
+      min-width: 160px;
+    }
+
+    .kpi .t {
+      font-size: 12px;
+      color: var(--sub);
+    }
+
+    .kpi .v {
+      font-size: 16px;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 10px;
+    }
+
+    canvas {
+      width: 100% !important;
+      height: 320px !important;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      overflow: hidden;
+      border-radius: 14px;
+    }
+
+    th,
+    td {
+      padding: 10px 10px;
+      border-bottom: 1px solid rgba(255, 255, 255, .06);
+      font-size: 13px;
+    }
+
+    th {
+      text-align: left;
+      color: var(--sub);
+      font-weight: 600;
+    }
+
+    tr:hover td {
+      background: rgba(255, 255, 255, .03);
+    }
+
+    .num {
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .click {
+      cursor: pointer;
+    }
+
+    .good {
+      color: var(--good);
+    }
+
+    .bad {
+      color: var(--bad);
+    }
+
+    .muted {
+      color: var(--sub);
+    }
+
+    @media (max-width: 980px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+
+      .charts {
+        grid-template-columns: 1fr;
+      }
+
+      canvas {
+        height: 280px !important;
+      }
+
+      .kpi .box {
+        min-width: 140px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div>
+        <h1>매입/매출 누적 분석</h1>
+        <div class="hint">엑셀(.xlsx/.xls) 업로드 → 월/일 기준 품목별 누적(매입/매출) + 차트</div>
+      </div>
+      <div class="row">
+        <button class="btn" id="btnReset">초기화</button>
+        <button class="btn primary" id="btnExportMonth" disabled>CSV 내보내기(월 요약)</button>
+      </div>
+    </div>
+
+    <div class="banner" id="banner"></div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>1) 매입 데이터 업로드 (월 1회, 1시트)</h2>
+        <div class="row">
+          <input class="input" type="file" id="purchaseFile" accept=".xlsx,.xls" />
+          <span class="pill">상태: <b id="purchaseStatus">미업로드</b></span>
+        </div>
+        <div class="mini">
+          인식 우선순위: 헤더명(Entry Date / STYLE / QTY(PCS)) → 실패 시 컬럼 위치(C/D/F) 폴백
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>2) 매출 데이터 업로드 (수시, 다중 시트)</h2>
+        <div class="row">
+          <input class="input" type="file" id="salesFile" accept=".xlsx,.xls" />
+          <label class="pill" style="cursor:pointer;">
+            <input type="checkbox" id="appendSales" style="accent-color:#E51C1C" />
+            <span>기존 매출에 추가</span>
+          </label>
+          <span class="pill">상태: <b id="salesStatus">미업로드</b></span>
+        </div>
+        <div class="mini">
+          인식 우선순위: 헤더명(Transaction Date / ItemNo / Quantity) → 실패 시 컬럼 위치(C/D/E) 폴백
+        </div>
+      </div>
+
+      <div class="card wide">
+        <h2>3) 분석 설정</h2>
+        <div class="split">
+          <div class="row">
+            <label class="muted">월 선택</label>
+            <select class="input" id="monthSelect" disabled></select>
+
+            <label class="muted" style="margin-left:10px;">품목 검색</label>
+            <input class="input" id="itemSearch" placeholder="STYLE/ItemNo 검색" disabled />
+          </div>
+
+          <div class="kpi">
+            <div class="box">
+              <div class="t">월 매입수량</div>
+              <div class="v" id="kpiBuy">-</div>
+            </div>
+            <div class="box">
+              <div class="t">월 매출수량</div>
+              <div class="v" id="kpiSell">-</div>
+            </div>
+            <div class="box">
+              <div class="t">순증감(매입-매출)</div>
+              <div class="v" id="kpiNet">-</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card wide">
+        <h2>4) 월 전체 추이</h2>
+        <div class="charts">
+          <div>
+            <div class="mini">일별 총 매입/매출</div>
+            <canvas id="dailyTotalChart"></canvas>
+          </div>
+          <div>
+            <div class="mini">선택 월 TOP 10 품목 매출</div>
+            <canvas id="topItemsChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="card wide">
+        <h2>5) 월 요약 (품목별)</h2>
+        <div class="mini">행 클릭 시 해당 품목의 일별 누적/상세로 이동</div>
+        <table id="monthlyTable">
+          <thead>
+            <tr>
+              <th style="width:34%;">품목코드</th>
+              <th class="num">월 매입</th>
+              <th class="num">월 매출</th>
+              <th class="num">순증감</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="card wide">
+        <h2>6) 품목 상세 (일별 누적)</h2>
+        <div class="split">
+          <span class="pill">선택 품목: <b id="selectedItem">없음</b></span>
+          <button class="btn" id="btnExportItem" disabled>CSV 내보내기(선택 품목 일별)</button>
+        </div>
+        <div style="margin-top:10px;">
+          <canvas id="itemCumulativeChart"></canvas>
+        </div>
+
+        <table id="itemDailyTable">
+          <thead>
+            <tr>
+              <th style="width:24%;">날짜</th>
+              <th class="num">일 매입</th>
+              <th class="num">일 매출</th>
+              <th class="num">누적 매입</th>
+              <th class="num">누적 매출</th>
+              <th class="num">누적 순증감</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* ===========================
+       0) State / Charts
+    =========================== */
+    const state = {
+      purchaseRows: [], // {date:'YYYY-MM-DD', item:'CODE', qty:number}
+      salesRows: [],    // {date:'YYYY-MM-DD', item:'CODE', qty:number}
+      months: [],
+      selectedMonth: null,
+      selectedItem: null,
+    };
+
+    let chartDailyTotal = null;
+    let chartTopItems = null;
+    let chartItemCum = null;
+
+    /* ===========================
+       1) UI helpers
+    =========================== */
+    function $(id) { return document.getElementById(id); }
+
+    function showBanner(msg) {
+      const el = $("banner");
+      el.style.display = msg ? "block" : "none";
+      el.textContent = msg || "";
+    }
+    function setStatus(id, text, isError = false) {
+      const el = $(id);
+      el.textContent = text;
+      el.style.color = isError ? "#ff5a6b" : "";
+    }
+    function enableUI(enabled) {
+      $("monthSelect").disabled = !enabled;
+      $("itemSearch").disabled = !enabled;
+      $("btnExportMonth").disabled = !enabled;
+    }
+
+    /* ===========================
+       2) Parsing utilities
+    =========================== */
+    function pad2(n) { return String(n).padStart(2, "0"); }
+    function safeNum(x) {
+      const n = Number(x);
+      return Number.isFinite(n) ? n : 0;
+    }
+
+    /** Date normalize to YYYY-MM-DD
+     *  - Excel serial number
+     *  - Date object
+     *  - string: 'YYYY/MM/DD', 'YYYY-MM-DD', includes time
+     */
+    function toISODate(v) {
+      if (v == null || v === "") return null;
+
+      // Excel serial (SheetJS read raw may provide number)
+      if (typeof v === "number") {
+        const dt = XLSX.SSF.parse_date_code(v);
+        if (!dt || !dt.y || !dt.m || !dt.d) return null;
+        return `${dt.y}-${pad2(dt.m)}-${pad2(dt.d)}`;
+      }
+
+      if (v instanceof Date && !isNaN(v)) {
+        return `${v.getFullYear()}-${pad2(v.getMonth() + 1)}-${pad2(v.getDate())}`;
+      }
+
+      const s0 = String(v).trim();
+      if (!s0) return null;
+
+      const s = s0.replace(/\./g, "-").replace(/\//g, "-").split(" ")[0];
+      let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})$/);
+      if (m) return `${m[1]}-${pad2(m[2])}-${pad2(m[3])}`;
+
+      // fallback
+      const d = new Date(s0);
+      if (!isNaN(d)) return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+
+      return null;
+    }
+
+    function monthOf(isoDate) { return isoDate?.slice(0, 7) ?? null; }
+
+    /** Header normalization:
+     *  - lower case
+     *  - remove spaces, punctuation
+     *  e.g. "QTY(PCS)" => "qtypcs"
+     */
+    function normHeader(h) {
+      return String(h ?? "")
+        .trim()
+        .toLowerCase()
+        .replace(/[\s\W_]+/g, ""); // collapse anything non-alnum
+    }
+
+    function inferColumnMap(headers, type) {
+      const norm = headers.map(normHeader);
+
+      const idx = (...cands) => {
+        for (const c of cands) {
+          const target = normHeader(c);
+          const i = norm.findIndex(x => x === target);
+          if (i !== -1) return i;
+        }
+        return -1;
+      };
+
+      if (type === "purchase") {
+        const d = idx("Entry Date", "EntryDate", "Duty Payment Date", "DutyPaymentDate");
+        const i = idx("STYLE", "Style");
+        const q = idx("QTY(PCS)", "QTY", "Qty(PCS)", "QTYPCS", "QtyPCS");
+        if (d !== -1 && i !== -1 && q !== -1) return { date: d, item: i, qty: q };
+        // fallback to fixed column positions: C/D/F (0-based 2/3/5)
+        return { date: 2, item: 3, qty: 5 };
+      }
+
+      if (type === "sales") {
+        const d = idx("Transaction Date", "TransactionDate");
+        const i = idx("ItemNo", "Item No", "Item", "SKU");
+        const q = idx("Quantity", "Qty");
+        if (d !== -1 && i !== -1 && q !== -1) return { date: d, item: i, qty: q };
+        // fallback to fixed: C/D/E (2/3/4)
+        return { date: 2, item: 3, qty: 4 };
+      }
+
+      return null;
+    }
+
+    function aoaFromSheet(sheet) {
+      return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" });
+    }
+
+    function extractRowsFromSheet(sheet, type) {
+      const aoa = aoaFromSheet(sheet);
+      if (!aoa || aoa.length < 2) return [];
+      const headers = aoa[0] ?? [];
+      const map = inferColumnMap(headers, type);
+
+      const out = [];
+      for (let r = 1; r < aoa.length; r++) {
+        const row = aoa[r] ?? [];
+        const date = toISODate(row[map.date]);
+        const item = String(row[map.item] ?? "").trim();
+        const qty = safeNum(row[map.qty]);
+
+        if (!date || !item || !qty) continue;
+        out.push({ date, item, qty });
+      }
+      return out;
+    }
+
+    /* ===========================
+       3) Robust XLSX reading (에러 폴백)
+    =========================== */
+    // async function readWorkbookRobust(file) {
+    //   if (typeof XLSX === "undefined") {cc
+    //     throw new Error("XLSX 라이브러리 로드 실패(CDN 차단/네트워크).");
+    //   }
+
+    //   const sizeMB = (file?.size || 0) / (1024 * 1024);
+    //   if (sizeMB > 60) {
+    //     throw new Error(`파일이 너무 큽니다(${sizeMB.toFixed(1)}MB). 60MB 이하로 분리/축소해주세요.`);
+    //   }
+
+    //   // 1) arrayBuffer 방식 (대부분 정상)
+    //   try {
+    //     const buf = await file.arrayBuffer();
+    //     const wb = XLSX.read(buf, { type: "array", cellDates: true, raw: true, WTF: false });
+    //     if (!wb?.SheetNames?.length) throw new Error("시트를 찾지 못했습니다(빈 파일/손상 가능).");
+    //     return wb;
+    //   } catch (e1) {
+    //     // 2) binary 폴백 (특정 케이스 호환)
+    //     const wb = await new Promise((resolve, reject) => {
+    //       const reader = new FileReader();
+    //       reader.onerror = () => reject(new Error("FileReader 읽기 실패(파일 손상/권한/브라우저 이슈)."));
+    //       reader.onload = () => {
+    //         try {
+    //           const data = reader.result;
+    //           const book = XLSX.read(data, { type: "binary", cellDates: true, raw: true, WTF: false });
+    //           resolve(book);
+    //         } catch (e2) { reject(e2); }
+    //       };
+    //       reader.readAsBinaryString(file);
+    //     });
+    //     if (!wb?.SheetNames?.length) throw new Error("시트를 찾지 못했습니다(빈 파일/손상 가능).");
+    //     return wb;
+    //   }
+    // }
+    async function readWorkbookRobust(file) {
+
+
+      const buf = await file.arrayBuffer();
+
+      // 안정 옵션들
+      const wb = XLSX.read(buf, {
+        type: "array",
+        cellDates: true,
+        dateNF: "yyyy-mm-dd",
+        raw: false,
+      });
+
+      return wb;
+    }
+
+    /* ===========================
+       4) Aggregation
+    =========================== */
+    function sum(arr) { return arr.reduce((a, b) => a + b, 0); }
+
+    function buildMonthOptions() {
+      const months = new Set();
+      for (const r of state.purchaseRows) months.add(monthOf(r.date));
+      for (const r of state.salesRows) months.add(monthOf(r.date));
+      state.months = [...months].filter(Boolean).sort();
+
+      const sel = $("monthSelect");
+      sel.innerHTML = "";
+      for (const m of state.months) {
+        const opt = document.createElement("option");
+        opt.value = m;
+        opt.textContent = m;
+        sel.appendChild(opt);
+      }
+
+      state.selectedMonth = state.months[state.months.length - 1] || null;
+      if (state.selectedMonth) sel.value = state.selectedMonth;
+    }
+
+    function aggregateForMonth(month) {
+      const buy = state.purchaseRows.filter(r => monthOf(r.date) === month);
+      const sell = state.salesRows.filter(r => monthOf(r.date) === month);
+
+      // daily totals (all items)
+      const dailyMap = new Map(); // date -> {buy, sell}
+      const touch = (date) => {
+        if (!dailyMap.has(date)) dailyMap.set(date, { buy: 0, sell: 0 });
+        return dailyMap.get(date);
+      };
+      for (const r of buy) touch(r.date).buy += r.qty;
+      for (const r of sell) touch(r.date).sell += r.qty;
+
+      const daily = [...dailyMap.entries()]
+        .map(([date, v]) => ({ date, buy: v.buy, sell: v.sell }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      // item totals
+      const itemMap = new Map(); // item -> {buy, sell}
+      const touchItem = (item) => {
+        if (!itemMap.has(item)) itemMap.set(item, { buy: 0, sell: 0 });
+        return itemMap.get(item);
+      };
+      for (const r of buy) touchItem(r.item).buy += r.qty;
+      for (const r of sell) touchItem(r.item).sell += r.qty;
+
+      const items = [...itemMap.entries()].map(([item, v]) => ({
+        item, buy: v.buy, sell: v.sell, net: (v.buy - v.sell)
+      }));
+
+      return { daily, items };
+    }
+
+    function aggregateItemDaily(month, item) {
+      const buy = state.purchaseRows.filter(r => monthOf(r.date) === month && r.item === item);
+      const sell = state.salesRows.filter(r => monthOf(r.date) === month && r.item === item);
+
+      const map = new Map(); // date -> {buy, sell}
+      const touch = (date) => {
+        if (!map.has(date)) map.set(date, { buy: 0, sell: 0 });
+        return map.get(date);
+      };
+      for (const r of buy) touch(r.date).buy += r.qty;
+      for (const r of sell) touch(r.date).sell += r.qty;
+
+      const list = [...map.entries()]
+        .map(([date, v]) => ({ date, buy: v.buy, sell: v.sell }))
+        .sort((a, b) => a.date.localeCompare(b.date));
+
+      let cumBuy = 0, cumSell = 0;
+      return list.map(d => {
+        cumBuy += d.buy; cumSell += d.sell;
+        return { ...d, cumBuy, cumSell, cumNet: (cumBuy - cumSell) };
+      });
+    }
+
+    /* ===========================
+       5) Rendering
+    =========================== */
+    function destroyCharts() {
+      if (chartDailyTotal) chartDailyTotal.destroy();
+      if (chartTopItems) chartTopItems.destroy();
+      if (chartItemCum) chartItemCum.destroy();
+      chartDailyTotal = chartTopItems = chartItemCum = null;
+    }
+
+    function renderEmpty() {
+      enableUI(false);
+      $("itemSearch").value = "";
+      $("selectedItem").textContent = "없음";
+      $("btnExportItem").disabled = true;
+      $("btnExportMonth").disabled = true;
+
+      $("kpiBuy").textContent = "-";
+      $("kpiSell").textContent = "-";
+      $("kpiNet").textContent = "-";
+      $("kpiNet").className = "v";
+
+      const mt = $("monthlyTable").querySelector("tbody");
+      mt.innerHTML = `<tr><td colspan="4" class="muted">데이터가 없습니다. 엑셀을 업로드해주세요.</td></tr>`;
+
+      const it = $("itemDailyTable").querySelector("tbody");
+      it.innerHTML = `<tr><td colspan="6" class="muted">품목을 선택하면 일별 누적을 표시합니다.</td></tr>`;
+
+      destroyCharts();
+      // draw blank charts
+      chartDailyTotal = new Chart($("dailyTotalChart"), { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true } });
+      chartTopItems = new Chart($("topItemsChart"), { type: "bar", data: { labels: [], datasets: [] }, options: { responsive: true } });
+      chartItemCum = new Chart($("itemCumulativeChart"), { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true } });
+    }
+
+    function render() {
+      showBanner(""); // clear soft errors
+      buildMonthOptions();
+
+      const ready = !!state.selectedMonth;
+      enableUI(ready);
+      $("btnExportMonth").disabled = !ready;
+      $("itemSearch").disabled = !ready;
+
+      if (!ready) {
+        renderEmpty();
+        return;
+      }
+
+      const month = state.selectedMonth;
+      const { daily, items } = aggregateForMonth(month);
+
+      const totalBuy = sum(items.map(x => x.buy));
+      const totalSell = sum(items.map(x => x.sell));
+      const totalNet = totalBuy - totalSell;
+
+      $("kpiBuy").textContent = totalBuy.toLocaleString();
+      $("kpiSell").textContent = totalSell.toLocaleString();
+      $("kpiNet").textContent = totalNet.toLocaleString();
+      $("kpiNet").className = "v " + (totalNet >= 0 ? "good" : "bad");
+
+      // filter items by search
+      const q = $("itemSearch").value.trim().toLowerCase();
+      const filtered = items
+        .filter(x => !q || x.item.toLowerCase().includes(q))
+        .sort((a, b) => (b.sell - a.sell) || a.item.localeCompare(b.item));
+
+      renderMonthlyTable(filtered);
+      renderMonthCharts(daily, items);
+
+      // if selected item is gone in this month, reset
+      if (state.selectedItem && !items.some(x => x.item === state.selectedItem)) {
+        state.selectedItem = null;
+      }
+      renderItemDetail(state.selectedItem);
+    }
+
+    function renderMonthlyTable(items) {
+      const tbody = $("monthlyTable").querySelector("tbody");
+      tbody.innerHTML = "";
+
+      if (!items.length) {
+        tbody.innerHTML = `<tr><td colspan="4" class="muted">해당 조건의 품목이 없습니다.</td></tr>`;
+        return;
+      }
+
+      for (const x of items) {
+        const tr = document.createElement("tr");
+        tr.className = "click";
+        const netClass = x.net >= 0 ? "good" : "bad";
+        tr.innerHTML = `
+      <td>${x.item}</td>
+      <td class="num">${x.buy.toLocaleString()}</td>
+      <td class="num">${x.sell.toLocaleString()}</td>
+      <td class="num ${netClass}">${x.net.toLocaleString()}</td>
+    `;
+        tr.addEventListener("click", () => {
+          state.selectedItem = x.item;
+          renderItemDetail(x.item);
+          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+        });
+        tbody.appendChild(tr);
+      }
+    }
+
+    function chartCommonOptions() {
+      return {
+        responsive: true,
+        plugins: { legend: { labels: { color: "#cfd1e6" } } },
+        scales: {
+          x: { ticks: { color: "#a7a9be" }, grid: { color: "rgba(255,255,255,.06)" } },
+          y: { ticks: { color: "#a7a9be" }, grid: { color: "rgba(255,255,255,.06)" } }
+        }
+      };
+    }
+
+    function renderMonthCharts(daily, items) {
+      const labels = daily.map(d => d.date.slice(8, 10)); // day only
+      const buyData = daily.map(d => d.buy);
+      const sellData = daily.map(d => d.sell);
+
+      if (chartDailyTotal) chartDailyTotal.destroy();
+      chartDailyTotal = new Chart($("dailyTotalChart"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [
+            { label: "일 매입", data: buyData, borderColor: "rgba(46,204,113,1)", backgroundColor: "rgba(46,204,113,.12)", tension: .25, fill: true },
+            { label: "일 매출", data: sellData, borderColor: "rgba(229,28,28,1)", backgroundColor: "rgba(229,28,28,.14)", tension: .25, fill: true },
+          ]
+        },
+        options: chartCommonOptions()
+      });
+
+      const top = [...items].sort((a, b) => b.sell - a.sell).slice(0, 10);
+      if (chartTopItems) chartTopItems.destroy();
+      chartTopItems = new Chart($("topItemsChart"), {
+        type: "bar",
+        data: {
+          labels: top.map(x => x.item),
+          datasets: [
+            {
+              label: "월 매출(상위 10)", data: top.map(x => x.sell),
+              backgroundColor: "rgba(229,28,28,.55)", borderColor: "rgba(229,28,28,1)", borderWidth: 1
+            }
+          ]
+        },
+        options: chartCommonOptions()
+      });
+    }
+
+    function renderItemDetail(item) {
+      $("selectedItem").textContent = item ?? "없음";
+      $("btnExportItem").disabled = !item;
+
+      const tbody = $("itemDailyTable").querySelector("tbody");
+      tbody.innerHTML = "";
+
+      if (chartItemCum) chartItemCum.destroy();
+
+      if (!item || !state.selectedMonth) {
+        tbody.innerHTML = `<tr><td colspan="6" class="muted">품목을 선택하면 일별 누적을 표시합니다.</td></tr>`;
+        chartItemCum = new Chart($("itemCumulativeChart"), { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true } });
+        return;
+      }
+
+      const rows = aggregateItemDaily(state.selectedMonth, item);
+      if (!rows.length) {
+        tbody.innerHTML = `<tr><td colspan="6" class="muted">선택 월에 해당 품목 데이터가 없습니다.</td></tr>`;
+        chartItemCum = new Chart($("itemCumulativeChart"), { type: "line", data: { labels: [], datasets: [] }, options: { responsive: true } });
+        return;
+      }
+
+      chartItemCum = new Chart($("itemCumulativeChart"), {
+        type: "line",
+        data: {
+          labels: rows.map(r => r.date.slice(8, 10)),
+          datasets: [
+            { label: "누적 매입", data: rows.map(r => r.cumBuy), borderColor: "rgba(46,204,113,1)", backgroundColor: "rgba(46,204,113,.12)", tension: .25, fill: true },
+            { label: "누적 매출", data: rows.map(r => r.cumSell), borderColor: "rgba(229,28,28,1)", backgroundColor: "rgba(229,28,28,.14)", tension: .25, fill: true },
+          ]
+        },
+        options: chartCommonOptions()
+      });
+
+      for (const r of rows) {
+        const tr = document.createElement("tr");
+        const netClass = r.cumNet >= 0 ? "good" : "bad";
+        tr.innerHTML = `
+      <td>${r.date}</td>
+      <td class="num">${r.buy.toLocaleString()}</td>
+      <td class="num">${r.sell.toLocaleString()}</td>
+      <td class="num">${r.cumBuy.toLocaleString()}</td>
+      <td class="num">${r.cumSell.toLocaleString()}</td>
+      <td class="num ${netClass}">${r.cumNet.toLocaleString()}</td>
+    `;
+        tbody.appendChild(tr);
+      }
+    }
+
+    /* ===========================
+       6) CSV Export
+    =========================== */
+    function downloadCSV(filename, rows) {
+      const esc = (v) => {
+        const s = String(v ?? "");
+        return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+      };
+      const csv = rows.map(r => r.map(esc).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    /* ===========================
+       7) Handlers
+    =========================== */
+    async function handlePurchaseUpload(file) {
+      setStatus("purchaseStatus", "읽는 중...");
+      showBanner("");
+
+      const wb = await readWorkbookRobust(file);
+
+      const sheetName = wb.SheetNames[0];
+      const rows = extractRowsFromSheet(wb.Sheets[sheetName], "purchase");
+
+      if (!rows.length) {
+        throw new Error("유효한 매입 행이 0개입니다.\n- 헤더명(Entry Date/STYLE/QTY(PCS)) 또는\n- 컬럼 위치(C/D/F) / 날짜 포맷을 확인해주세요.");
+      }
+
+      state.purchaseRows = rows;
+      setStatus("purchaseStatus", `${rows.length.toLocaleString()}행`);
+
+      // Soft warning: multiple months in purchase file
+      const months = new Set(rows.map(r => monthOf(r.date)));
+      if (months.size > 1) {
+        showBanner(`주의: 매입 파일에 여러 월 데이터가 섞여있습니다.\n감지된 월: ${[...months].sort().join(", ")}`);
+      }
+
+      state.selectedItem = null;
+      render();
+    }
+
+    async function handleSalesUpload(file, append) {
+      setStatus("salesStatus", "읽는 중...");
+      showBanner("");
+
+      const wb = await readWorkbookRobust(file);
+
+      let rows = [];
+      for (const name of wb.SheetNames) {
+        rows = rows.concat(extractRowsFromSheet(wb.Sheets[name], "sales"));
+      }
+
+      if (!rows.length) {
+        throw new Error("유효한 매출 행이 0개입니다.\n- 헤더명(Transaction Date/ItemNo/Quantity) 또는\n- 컬럼 위치(C/D/E) / 날짜 포맷을 확인해주세요.");
+      }
+
+      state.salesRows = append ? state.salesRows.concat(rows) : rows;
+      setStatus("salesStatus", `${state.salesRows.length.toLocaleString()}행`);
+
+      state.selectedItem = null;
+      render();
+    }
+
+    /* ===========================
+       8) Wire up
+    =========================== */
+    $("purchaseFile").addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+        await handlePurchaseUpload(file);
+      } catch (err) {
+        console.error(err);
+        setStatus("purchaseStatus", `에러`, true);
+        showBanner(`매입 업로드 실패: ${err?.message || err}`);
+      }
+    });
+
+    $("salesFile").addEventListener("change", async (e) => {
+      const file = e.target.files?.[0];
+      if (!file) return;
+
+      try {
+        await handleSalesUpload(file, $("appendSales").checked);
+      } catch (err) {
+        console.error(err);
+        setStatus("salesStatus", `에러`, true);
+        showBanner(`매출 업로드 실패: ${err?.message || err}\n\n※ 암호/보호된 엑셀, 손상된 다운로드 파일은 브라우저 파싱이 실패할 수 있습니다.\n엑셀에서 '다른 이름으로 저장(.xlsx)' 후 다시 업로드해보세요.`);
+      }
+    });
+
+    $("monthSelect").addEventListener("change", (e) => {
+      state.selectedMonth = e.target.value;
+      state.selectedItem = null;
+      render();
+    });
+    $("itemSearch").addEventListener("input", () => {
+      render();
+    });
+
+    $("btnReset").addEventListener("click", () => {
+      state.purchaseRows = [];
+      state.salesRows = [];
+      state.months = [];
+      state.selectedMonth = null;
+      state.selectedItem = null;
+
+      $("purchaseFile").value = "";
+      $("salesFile").value = "";
+      setStatus("purchaseStatus", "미업로드");
+      setStatus("salesStatus", "미업로드");
+      $("itemSearch").value = "";
+      showBanner("");
+      render();
+    });
+
+    $("btnExportMonth").addEventListener("click", () => {
+      if (!state.selectedMonth) return;
+      const { items } = aggregateForMonth(state.selectedMonth);
+      const rows = [
+        ["Month", state.selectedMonth],
+        [],
+        ["Item", "MonthlyPurchaseQty", "MonthlySalesQty", "Net(Purchase-Sales)"],
+        ...items
+          .sort((a, b) => (b.sell - a.sell) || a.item.localeCompare(b.item))
+          .map(x => [x.item, x.buy, x.sell, x.net])
+      ];
+      downloadCSV(`monthly_summary_${state.selectedMonth}.csv`, rows);
+    });
+
+    $("btnExportItem").addEventListener("click", () => {
+      if (!state.selectedMonth || !state.selectedItem) return;
+      const rows = aggregateItemDaily(state.selectedMonth, state.selectedItem);
+      const csvRows = [
+        ["Month", state.selectedMonth],
+        ["Item", state.selectedItem],
+        [],
+        ["Date", "DailyPurchase", "DailySales", "CumPurchase", "CumSales", "CumNet"],
+        ...rows.map(r => [r.date, r.buy, r.sell, r.cumBuy, r.cumSell, r.cumNet])
+      ];
+      downloadCSV(`item_daily_${state.selectedMonth}_${state.selectedItem}.csv`, csvRows);
+    });
+
+    /* init */
+    renderEmpty();
+  </script>
+</body>
+
+</html>
